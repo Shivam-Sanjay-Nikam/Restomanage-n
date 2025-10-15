@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Restaurant Management Backend Tests</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #1a1a1a;
+            color: #00ff00;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #00ff00;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background-color: #2a2a2a;
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-section h2 {
+            color: #00ff00;
+            margin-top: 0;
+        }
+        button {
+            background-color: #00ff00;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #00cc00;
+        }
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        .output {
+            background-color: #000;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+            min-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-size: 14px;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success {
+            background-color: #004400;
+            border: 1px solid #00ff00;
+        }
+        .status.error {
+            background-color: #440000;
+            border: 1px solid #ff0000;
+        }
+        .status.info {
+            background-color: #000044;
+            border: 1px solid #0000ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ Restaurant Management Backend Tests</h1>
+        
+        <div class="test-section">
+            <h2>Test Controls</h2>
+            <button onclick="runAllTests()" id="runAllBtn">🚀 Run All Tests</button>
+            <button onclick="runRestaurantTests()" id="runRestaurantBtn">🏪 Test Restaurant</button>
+            <button onclick="runMenuTests()" id="runMenuBtn">🍔 Test Menu</button>
+            <button onclick="runCartTests()" id="runCartBtn">🛒 Test Cart</button>
+            <button onclick="runOrderTests()" id="runOrderBtn">📝 Test Orders</button>
+            <button onclick="clearOutput()" id="clearBtn">🗑️ Clear Output</button>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Output</h2>
+            <div id="output" class="output">Ready to run tests... Click a button above to start testing!</div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Configuration</h2>
+            <p><strong>Supabase URL:</strong> https://rphjsyyppyrvkjuzlxun.supabase.co</p>
+            <p><strong>Status:</strong> <span id="status">Ready</span></p>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://rphjsyyppyrvkjuzlxun.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJwaGpzeXlwcHlydmtqdXpseHVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNzU3OTEsImV4cCI6MjA3NTk1MTc5MX0.AgyLFtjZbPwxIVRHpdq8phNY5DcB7FZQuBLycAFNacw';
+        
+        let testData = {
+            restaurant: null,
+            admin: null,
+            staff: null,
+            table: null,
+            menuItem: null,
+            cart: null,
+            order: null
+        };
+
+        function log(message) {
+            const output = document.getElementById('output');
+            const timestamp = new Date().toLocaleTimeString();
+            output.textContent += `[${timestamp}] ${message}\n`;
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+            log('Output cleared. Ready for new tests.');
+        }
+
+        function setStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+        }
+
+        function setButtonsEnabled(enabled) {
+            const buttons = ['runAllBtn', 'runRestaurantBtn', 'runMenuBtn', 'runCartBtn', 'runOrderBtn'];
+            buttons.forEach(id => {
+                document.getElementById(id).disabled = !enabled;
+            });
+        }
+
+        async function callFunction(functionName, method = 'GET', data = null, queryParams = '') {
+            const url = `${SUPABASE_URL}/functions/v1/${functionName}${queryParams}`;
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                }
+            };
+
+            if (data && (method === 'POST' || method === 'PUT')) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(url, options);
+                const result = await response.json();
+                return { response, result, error: null };
+            } catch (error) {
+                return { response: null, result: null, error: error.message };
+            }
+        }
+
+        async function testCreateRestaurant() {
+            log('🏪 Testing create_restaurant...');
+            
+            const restaurantData = {
+                name: 'Test Restaurant ' + Date.now(),
+                email: `test${Date.now()}@restaurant.com`,
+                password_hash: 'hashed_password_123',
+                address: '123 Test Street',
+                phone: '+1234567890'
+            };
+
+            const { response, result, error } = await callFunction('create_restaurant', 'POST', restaurantData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Restaurant created successfully');
+                log('   ID: ' + result.data.id);
+                testData.restaurant = result.data;
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function testCreateStaff() {
+            log('👨‍💼 Testing create_staff...');
+            
+            const staffData = {
+                restaurant_id: testData.restaurant.id,
+                name: 'Test Waiter',
+                email: `waiter${Date.now()}@test.com`,
+                password_hash: 'hashed_password_123',
+                role: 'waiter'
+            };
+
+            const { response, result, error } = await callFunction('create_staff', 'POST', staffData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Staff created successfully');
+                log('   ID: ' + result.data.id);
+                testData.staff = result.data;
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function testCreateTable() {
+            log('🪑 Testing create_table...');
+            
+            const tableData = {
+                restaurant_id: testData.restaurant.id,
+                table_number: Math.floor(Math.random() * 1000) + 1,
+                capacity: 4,
+                status: 'available'
+            };
+
+            const { response, result, error } = await callFunction('create_table', 'POST', tableData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Table created successfully');
+                log('   ID: ' + result.data.id);
+                log('   Table Number: ' + result.data.table_number);
+                testData.table = result.data;
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function testCreateMenuItem() {
+            log('🍔 Testing create_menu_item...');
+            
+            const menuItemData = {
+                restaurant_id: testData.restaurant.id,
+                name: 'Test Burger ' + Date.now(),
+                description: 'A delicious test burger',
+                category: 'Main Course',
+                cost: 15.99,
+                available: true
+            };
+
+            const { response, result, error } = await callFunction('create_menu_item', 'POST', menuItemData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Menu item created successfully');
+                log('   ID: ' + result.data.id);
+                log('   Name: ' + result.data.name);
+                testData.menuItem = result.data;
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function testCreateCart() {
+            log('🛒 Testing create_cart...');
+            
+            const cartData = {
+                restaurant_id: testData.restaurant.id,
+                table_id: testData.table.id
+            };
+
+            const { response, result, error } = await callFunction('create_cart', 'POST', cartData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Cart created successfully');
+                log('   ID: ' + result.data.id);
+                testData.cart = result.data;
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function testAddToCart() {
+            log('➕ Testing add_to_cart...');
+            
+            const cartItemData = {
+                cart_id: testData.cart.id,
+                menu_item_id: testData.menuItem.id,
+                quantity: 2,
+                notes: 'Extra cheese please'
+            };
+
+            const { response, result, error } = await callFunction('add_to_cart', 'POST', cartItemData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Item added to cart successfully');
+                log('   Quantity: ' + result.data.quantity);
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function testPlaceOrder() {
+            log('📝 Testing place_order...');
+            
+            const orderData = {
+                cart_id: testData.cart.id,
+                created_by: testData.staff.id
+            };
+
+            const { response, result, error } = await callFunction('place_order', 'POST', orderData);
+            
+            if (error) {
+                log('❌ Network error: ' + error);
+                return null;
+            }
+            
+            if (response.status === 200 && result.success) {
+                log('✅ Order placed successfully');
+                log('   Order ID: ' + result.data.id);
+                log('   Total Amount: $' + result.data.total_amount);
+                testData.order = result.data;
+                return result.data;
+            } else {
+                log('❌ Failed: ' + result.error);
+                return null;
+            }
+        }
+
+        async function runAllTests() {
+            setButtonsEnabled(false);
+            setStatus('Running all tests...', 'info');
+            clearOutput();
+            
+            log('🚀 Starting Complete Test Suite');
+            log('=' * 50);
+            
+            try {
+                await testCreateRestaurant();
+                await testCreateStaff();
+                await testCreateTable();
+                await testCreateMenuItem();
+                await testCreateCart();
+                await testAddToCart();
+                await testPlaceOrder();
+                
+                log('\n🎉 All tests completed successfully!');
+                setStatus('All tests passed!', 'success');
+            } catch (error) {
+                log('\n💥 Test suite error: ' + error.message);
+                setStatus('Tests failed!', 'error');
+            } finally {
+                setButtonsEnabled(true);
+            }
+        }
+
+        async function runRestaurantTests() {
+            setButtonsEnabled(false);
+            setStatus('Running restaurant tests...', 'info');
+            clearOutput();
+            
+            try {
+                await testCreateRestaurant();
+                log('\n✅ Restaurant tests completed!');
+                setStatus('Restaurant tests passed!', 'success');
+            } catch (error) {
+                log('\n💥 Restaurant tests error: ' + error.message);
+                setStatus('Restaurant tests failed!', 'error');
+            } finally {
+                setButtonsEnabled(true);
+            }
+        }
+
+        async function runMenuTests() {
+            setButtonsEnabled(false);
+            setStatus('Running menu tests...', 'info');
+            clearOutput();
+            
+            try {
+                if (!testData.restaurant) {
+                    await testCreateRestaurant();
+                }
+                await testCreateMenuItem();
+                log('\n✅ Menu tests completed!');
+                setStatus('Menu tests passed!', 'success');
+            } catch (error) {
+                log('\n💥 Menu tests error: ' + error.message);
+                setStatus('Menu tests failed!', 'error');
+            } finally {
+                setButtonsEnabled(true);
+            }
+        }
+
+        async function runCartTests() {
+            setButtonsEnabled(false);
+            setStatus('Running cart tests...', 'info');
+            clearOutput();
+            
+            try {
+                if (!testData.restaurant) await testCreateRestaurant();
+                if (!testData.table) await testCreateTable();
+                if (!testData.menuItem) await testCreateMenuItem();
+                await testCreateCart();
+                await testAddToCart();
+                log('\n✅ Cart tests completed!');
+                setStatus('Cart tests passed!', 'success');
+            } catch (error) {
+                log('\n💥 Cart tests error: ' + error.message);
+                setStatus('Cart tests failed!', 'error');
+            } finally {
+                setButtonsEnabled(true);
+            }
+        }
+
+        async function runOrderTests() {
+            setButtonsEnabled(false);
+            setStatus('Running order tests...', 'info');
+            clearOutput();
+            
+            try {
+                if (!testData.restaurant) await testCreateRestaurant();
+                if (!testData.staff) await testCreateStaff();
+                if (!testData.table) await testCreateTable();
+                if (!testData.menuItem) await testCreateMenuItem();
+                if (!testData.cart) await testCreateCart();
+                await testAddToCart();
+                await testPlaceOrder();
+                log('\n✅ Order tests completed!');
+                setStatus('Order tests passed!', 'success');
+            } catch (error) {
+                log('\n💥 Order tests error: ' + error.message);
+                setStatus('Order tests failed!', 'error');
+            } finally {
+                setButtonsEnabled(true);
+            }
+        }
+
+        // Initialize
+        log('Test runner initialized. Ready to test your Restaurant Management Backend!');
+    </script>
+</body>
+</html>

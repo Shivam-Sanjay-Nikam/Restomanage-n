@@ -1,0 +1,30 @@
+{
+  "name": "restomanage-backend",
+  "version": "1.0.0",
+  "description": "Supabase backend for Restaurant Management Web App",
+  "scripts": {
+    "test": "cd tests && npm test",
+    "test:quick": "cd tests && npm run test:quick",
+    "test:unit": "cd tests && npm run test:unit",
+    "test:integration": "cd tests && npm run test:integration",
+    "test:e2e": "cd tests && npm run test:e2e",
+    "test:performance": "cd tests && npm run test:performance",
+    "test:security": "cd tests && npm run test:security",
+    "test:browser": "cd tests && npm run test:browser",
+    "test:functions": "deno test supabase/functions/tests/ --allow-net --allow-env",
+    "dev": "supabase start",
+    "deploy": "supabase functions deploy",
+    "db:push": "supabase db push",
+    "db:reset": "supabase db reset",
+    "setup:db": "echo 'Run setup_database.sql in your Supabase SQL Editor'"
+  },
+  "keywords": [
+    "supabase",
+    "restaurant",
+    "management",
+    "edge-functions",
+    "deno"
+  ],
+  "author": "Restomanage Team",
+  "license": "MIT"
+}
